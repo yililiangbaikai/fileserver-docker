@@ -1,0 +1,54 @@
+#文件服务docker-compose配置文件
+image-magick:
+  # 免构建镜像，未修改构建文件下等同于构建本地镜像，如使用本地 build 需注释此行并关闭 build 注释。
+  # image: registry.cn-hangzhou.aliyuncs.com/yililiangbaikai/java-tomcat-unoconv-ffmpeg:lastest
+  #mem_limit: 2048m
+  # 构建本地镜像
+  build: ./
+  links:
+    - "mysql"
+    - "office"
+  # 将容器的8080端口绑定到宿主机的80端口
+  ports:
+    - "9292:9091"
+  # java-maven-tomcat 容器启动后的运行命令
+  command: bash -c "cd /fileServer && java -jar /fileServer/file-server-1.0.0.jar"
+  volumes:
+    # 挂载 Maven 的缓存目录
+    #- ./data/maven:/usr/share/maven/ref/repository
+    # 挂载文件上传目录
+    - /nas:/nas
+  restart: always
+  extra_hosts:
+    - "openapi.jxeduyun.com:20.20.23.100"
+mysql:
+  build: ./mysql
+  expose:
+    - "3306"
+  # 将容器的3306端口绑定到宿主机的3360端口
+  ports:
+    - "3366:3306"
+  environment:
+    MYSQL_DATABASE: fileserver
+    MYSQL_ROOT_PASSWORD: b1ng0 
+  volumes:
+  # 挂载 Mysql 数据目录，持久化数据库。
+    - ./data/mysql:/var/lib/mysql
+    - ./config/mysql:/etc/mysql/conf.d
+  restart: always
+office:
+  image: libreoffice/online:master
+  environment:
+    domain: vod.jxeduyun.com
+    username: bingo
+    password: bingo
+    extra_params: '--o:ssl.enable=false --o:net.post_allow.host[0]=::ffff:[0-9]+.[0-9]+.[0-9]+.[0-9]+ --o:net.post_allow.host[1]=[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+    DONT_GEN_SSL_CERT: 1
+  volumes:
+    - config-volume:/etc/loolwsd
+  cap_add:
+    - MKNOD
+  ports:
+    - "9988:9980"
+  restart:
+    unless-stopped
